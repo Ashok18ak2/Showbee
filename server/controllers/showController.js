@@ -42,7 +42,7 @@ export const addShow = async(req,res)=>{
             poster_path:movieApiData.poster_path,
             backdrop_path:movieApiData.backdrop_path,
             genres:movieApiData.genres,
-            casts:movieCreditsData.casts,
+            casts:movieCreditsData.cast,
             release_date:movieApiData.release_date,
             original_language:movieApiData.original_language,
             tagline:movieApiData.tagline || "",

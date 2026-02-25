@@ -33,7 +33,7 @@ export const addShow = async(req,res)=>{
             headers:{Authorization :`bearer ${process.env.TMDB_API_KEY}`}})
         ]);
         const movieApiData = movieDetailsResponse.data;
-        const movieCreditData = movieCreditResponse.data;
+        const movieCreditsData = movieCreditResponse.data;
 
         const movieDetails ={
             _id:movieId,
@@ -42,7 +42,7 @@ export const addShow = async(req,res)=>{
             poster_path:movieApiData.poster_path,
             backdrop_path:movieApiData.backdrop_path,
             genres:movieApiData.genres,
-            casts:movieApiData.casts,
+            casts:movieCreditsData.casts,
             release_date:movieApiData.release_date,
             original_language:movieApiData.original_language,
             tagline:movieApiData.tagline || "",

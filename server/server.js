@@ -20,6 +20,6 @@ app.get('/',(req,res)=>res.send('server is Live!'))
 app.use('/api/inngest',serve({ client: inngest, functions }));
 app.use('/api/show',showRouter)
 
-app.listen(PORT,()=>console.log(`server is listening to Port ${PORT}`));
+app.listen(PORT,()=>console.log(`server2 is listening to Port ${PORT}`));
 
 export default app;

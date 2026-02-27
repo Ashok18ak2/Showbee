@@ -1,126 +1,101 @@
 import Booking from "../models/Booking.js";
 import Show from "../models/Show.js";
+import stripe from "stripe";
 
-
+// Function to check availability of selected seats
 const checkSeatsAvailability = async (showId, selectedSeats) => {
   try {
     const showData = await Show.findById(showId);
 
     if (!showData) return false;
 
-    const occupiedSeats = showData.occupiedSeats || {};
-
-    const isAnySeatTaken = selectedSeats.some(
-      (seat) => occupiedSeats[seat]
-    );
+    const occupiedSeats = showData.occupiedSeats;
+    const isAnySeatTaken = selectedSeats.some((seat) => occupiedSeats[seat]);
 
     return !isAnySeatTaken;
   } catch (error) {
-    console.error(error);
+    console.log(error);
     return false;
   }
 };
-
-//Create Booking (Race-condition safe) 
 
 export const createBooking = async (req, res) => {
   try {
     const { userId } = req.auth();
     const { showId, selectedSeats } = req.body;
+    const { origin } = req.headers;
 
-    if (!showId || !selectedSeats || selectedSeats.length === 0) {
-      return res.json({
-        success: false,
-        message: "ShowId and selected seats are required",
-      });
-    }
+    const isAvailable = await checkSeatsAvailability(showId, selectedSeats);
 
-    // Prepare atomic update object
-    const seatUpdateObject = {};
-    selectedSeats.forEach((seat) => {
-      seatUpdateObject[`occupiedSeats.${seat}`] = userId;
-    });
-
-    // Prepare condition to ensure seats are not already taken
-    const seatAvailabilityCondition = selectedSeats.reduce((acc, seat) => {
-      acc[`occupiedSeats.${seat}`] = { $exists: false };
-      return acc;
-    }, {});
-
-    // Atomic update (THIS prevents double booking)
-    const updatedShow = await Show.findOneAndUpdate(
-      {
-        _id: showId,
-        ...seatAvailabilityCondition,
-      },
-      {
-        $set: seatUpdateObject,
-      },
-      { new: true }
-    ).populate("movie");
-
-    // If null → seats already taken
-    if (!updatedShow) {
+    if (!isAvailable) {
       return res.json({
         success: false,
         message: "Selected seats are not available",
       });
     }
 
-    // Create booking
-    await Booking.create({
+    const showData = await Show.findById(showId).populate("movie");
+
+    const booking = await Booking.create({
       user: userId,
       show: showId,
-      amount: updatedShow.showPrice * selectedSeats.length,
+      amount: showData.showPrice * selectedSeats.length,
       bookedSeats: selectedSeats,
     });
 
-    return res.json({
-      success: true,
-      message: "Booking successful",
+    selectedSeats.forEach((seat) => {
+      showData.occupiedSeats[seat] = userId;
     });
+
+    showData.markModified("occupiedSeats");
+    await showData.save();
+
+    const stripeInstance = new stripe(process.env.STRIPE_SECRET_KEY);
+
+    const line_items = [
+      {
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: showData.movie.title,
+          },
+          unit_amount: Math.floor(booking.amount) * 100,
+        },
+        quantity: 1,
+      },
+    ];
+
+    const session = await stripeInstance.checkout.sessions.create({
+      success_url: `${origin}/loading/my-bookings`,
+      cancel_url: `${origin}/my-bookings`,
+      line_items: line_items,
+      mode: "payment",
+      metadata: {
+        bookingId: booking._id.toString(),
+      },
+      expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
+    });
+
+    booking.paymentLink = session.url;
+
+    await booking.save();
+
+    res.json({ success: true, url:session.url});
   } catch (error) {
-    console.error(error.message);
-    return res.json({
-      success: false,
-      message: error.message,
-    });
+    console.log(error.message);
+    res.json({ success: false, message: error.message });
   }
 };
 
-//Get Occupied Seats
- 
 export const getOccupiedSeats = async (req, res) => {
   try {
     const { showId } = req.params;
-
-    if (!showId) {
-      return res.json({
-        success: false,
-        message: "ShowId is required",
-      });
-    }
-
     const showData = await Show.findById(showId);
+    const occupiedSeats = Object.keys(showData.occupiedSeats);
 
-    if (!showData) {
-      return res.json({
-        success: false,
-        message: "Show not found",
-      });
-    }
-
-    const occupiedSeats = Object.keys(showData.occupiedSeats || {});
-
-    return res.json({
-      success: true,
-      occupiedSeats,
-    });
+    res.json({ success: true, occupiedSeats });
   } catch (error) {
-    console.error(error.message);
-    return res.json({
-      success: false,
-      message: error.message,
-    });
+    console.log(error.message);
+    res.json({ success: false, message: error.message });
   }
 };

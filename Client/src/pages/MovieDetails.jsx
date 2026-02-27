@@ -57,7 +57,7 @@ const MovieDetails = () => {
           <h1 className='text-4xl font-semibold max-w-96 text-balance'>{show.movie.title}</h1>
           <div className='flex items-center gap-2 text-gray-300'>
             <StarIcon className='w-5 h-5 text-primary fill-primary'/>
-            {Number(show.movie.vote_average).toFixed(1)} User Rating
+            {show.movie.vote_average.toFixed(1)} User Rating
           </div>
           <p className='text-gray-400 mt-2 text-sm leading-tight max-w-xl'>{show.movie.overview}</p>
           <p  className=''>
@@ -82,7 +82,7 @@ const MovieDetails = () => {
         <div className='flex items-center gap-4 w-max px-4'>
           {show.movie.casts.slice(0,12).map((cast,index)=>(
             <div key={index} className='flex flex-col items-center text-center'>
-              <img src={cast.profile_path} alt="" className='rounded-full h-20 md-h-20 aspect-square object-cover' />
+              <img src={image_base_url + cast.profile_path} alt="" className='rounded-full h-20 md-h-20 aspect-square object-cover' />
               <p className='font-medium text-xs mt-3'>{cast.name}</p>
             </div>
           ))}

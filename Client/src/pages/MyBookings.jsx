@@ -16,11 +16,15 @@ const MyBookings = () => {
 
   const getMyBokkings = async ()=>{
     try {
+       
       const {data} = await axios.get("/api/user/bookings",{
         headers:{Authorization:`Bearer ${await getToken()}`}
       })
+     
+
       if(data.success){
-        setBookings(data.bookings)
+        const validBookings = data.bookings.filter(item => item.show !== null)
+        setBookings(validBookings)
       }
     } catch (error) {
       console.log(error)

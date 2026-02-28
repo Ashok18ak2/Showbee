@@ -27,7 +27,11 @@ const SeatLayout = () => {
     try {
       const {data} = await axios.get(`/api/show/${id}`)
       if(data.success){
-        setShow(data.show)
+        setShow(data)
+        console.log("Show set:", data)
+
+      }else{
+        console.log("API returned failure:", data.message)
       }
     } catch (error) {
       console.log(error)

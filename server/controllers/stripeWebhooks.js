@@ -2,7 +2,7 @@ import stripe from 'stripe';
 import Booking from '../models/Booking.js';
 
 
-export const stripeWebhooks = async(request,responce) =>{
+export const stripeWebhooks = async(request,response) =>{
     const stripeInstance = new stripe(process.env.STRIPE_SECRET_KEY);
     const sig = request.headers["stripe-signature"];
 
@@ -11,7 +11,7 @@ export const stripeWebhooks = async(request,responce) =>{
     try{
         event = stripeInstance.webhooks.constructEvent(request.body,sig,process.env.STRIPE_WEBHOOK_SECRET)
     }catch(error){
-        return responce.status(400).send(`webhook Error :${error.message}`)
+        return response.status(400).send(`webhook Error :${error.message}`)
     }
 
     try {
@@ -22,7 +22,7 @@ export const stripeWebhooks = async(request,responce) =>{
                     payment_intent:paymentIntent.id
                 })
                 const session = sessionList.data[0];
-                const {bookinId} = session.metadata;
+                const {bookingId} = session.metadata;
 
                 await Booking.findByIdAndUpdate(bookingId,{
                     isPaid:true,
@@ -33,9 +33,9 @@ export const stripeWebhooks = async(request,responce) =>{
             default:
                 console.log('Unhandled event type',event.type)
         }
-        responce.json({received:true})
+        response.json({received:true})
     } catch (error) {
         console.log("webhook processing error:",error)
-        res.status(500).send("Internal server error")
+        response.status(500).send("Internal server error")
     }
 }

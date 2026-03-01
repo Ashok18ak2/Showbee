@@ -7,7 +7,7 @@ import { Inngest } from "inngest";
 // Create a client to send and receive events
 export const inngest = new Inngest({ id: "movie-ticket-booking" });
 
-//Inngest functio to save user data
+//Inngest function to save user data
 const syncUserCreation = inngest.createFunction(
   { id: "sync-user-from-clerk" },
   { event: "webhook-integration/user.created" },
@@ -87,44 +87,40 @@ const sendBookingConfirmationEmail = inngest.createFunction(
   async ({ event, step }) => {
     const { bookingId } = event.data;
 
-    const booking = await Booking.findById(bookingId)
-      .populate({
-        path: "show",
-        populate: { path: "movie", model: "Movie" },
-      })
-      .populate("user");
-
-    await sendEmail({
-      to: booking.user.email,
-      subject: `Payment Confirmation : ${booking.show.movie.title} booked!`,
-      body: `
-  <div style="font-family: Arial, sans-serif; line-height: 1.5;">
-    <h2>Hi ${booking.user.name},</h2>
-
-    <p>
-      Your booking for <strong style="color: #F84565;">
-        "${booking.show.movie.title}"
-      </strong> is confirmed.
-    </p>
-
-    <p>
-      <strong>Date:</strong>
-      ${new Date(booking.show.showDateTime).toLocaleDateString("en-US", {
-        timeZone: "Asia/Kolkata",
-      })}<br/>
-
-      <strong>Time:</strong>
-      ${new Date(booking.show.showDateTime).toLocaleTimeString("en-US", {
-        timeZone: "Asia/Kolkata",
-      })}
-    </p>
-
-    <p>Enjoy the show 🍿</p>
-    <p>Thanks for booking with us!<br/>— QuickShow Team</p>
-  </div>
-`,
+    // ✅ Wrap DB fetch in step.run()
+    const booking = await step.run("fetch-booking", async () => {
+      return await Booking.findById(bookingId)
+        .populate({
+          path: "show",
+          populate: { path: "movie", model: "Movie" },
+        })
+        .populate("user");
     });
-  },
+
+    // ✅ Wrap email sending in step.run()
+    await step.run("send-email", async () => {
+      await sendEmail({
+        to: booking.user.email,
+        subject: `Payment Confirmation : ${booking.show.movie.title} booked!`,
+        body: `
+          <div style="font-family: Arial, sans-serif; line-height: 1.5;">
+            <h2>Hi ${booking.user.name},</h2>
+            <p>Your booking for <strong style="color: #F84565;">
+              "${booking.show.movie.title}"
+            </strong> is confirmed.</p>
+            <p>
+              <strong>Date:</strong>
+              ${new Date(booking.show.showDateTime).toLocaleDateString("en-US", { timeZone: "Asia/Kolkata" })}<br/>
+              <strong>Time:</strong>
+              ${new Date(booking.show.showDateTime).toLocaleTimeString("en-US", { timeZone: "Asia/Kolkata" })}
+            </p>
+            <p>Enjoy the show 🍿</p>
+            <p>Thanks for booking with us!<br/>— QuickShow Team</p>
+          </div>
+        `,
+      });
+    });
+  }
 );
 export const functions = [
   syncUserCreation,
